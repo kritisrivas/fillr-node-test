@@ -37,13 +37,18 @@ function execute() {
       });
     } else if (!isTopFrame()) {
       // Child frames sends Fields up to Top Frame.
-      //collect child frame data
+      //collect both child frames data depending on loaded iframe's path
       let childFrameData = {};
       document.querySelectorAll("input[name], select[name]").forEach((element)=>{
         const label = document.querySelector(`label[for="${element.id}"]`);
         childFrameData[element.name] = label.innerText;
       })
-      window.parent.postMessage({ type: "fields", fields: childFrameData }, "*");
+      if(window.location.pathname.includes("address.html")){
+        window.parent.postMessage({ type: 'fields', fields: childFrameData }, '*');
+      }
+      if(window.location.pathname.includes("payment.html")){
+        window.parent.parent.postMessage({ type: 'fields', fields: childFrameData }, '*');
+      }
     }
 	} catch (e) {
 		console.error(e)
