@@ -9,22 +9,23 @@ function execute() {
     // Step 1 Scrape Fields and Create Fields list object.
     // Step 2 Add Listener for Top Frame to Receive Fields.
     if (isTopFrame()) {
+      //create object to collect data
+      let collectedFields = []; 
+      //collect top frame data
+      let topFrameData = {};
+      document.querySelectorAll("input[name]").forEach((element)=>{
+        const label = document.querySelector(`label[for="${element.id}"]`);
+        topFrameData[element.name] = label.innerText;
+      })
+      collectedFields = [...collectedFields, ...new Array(topFrameData)]
       window.addEventListener('message', (event) => {
         // - Merge fields from frames.
         // - Process Fields and send event once all fields are collected.
       });
-      //create event "frames:loaded" and send mock fieldsData
-      const fieldsData = [
-        { "address_line_1" : "Address Line 1" },
-        { "cc_number" : "Number" },
-        { "cc_type" : "Type" },
-        { "country" : "Country" },
-        { "first_name" : "First Name" },
-        { "last_name" : "Last Name" }
-      ]
+      //create event "frames:loaded" and send collected Fields
       const event = new CustomEvent("frames:loaded", {
         detail: {
-          fields: fieldsData
+          fields: collectedFields
         }
       })
       document.dispatchEvent(event)
