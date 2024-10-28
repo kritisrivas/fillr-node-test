@@ -5,92 +5,93 @@
 
 // This is a template to help you get started, feel free to make your own solution.
 function execute() {
-	try {
-    // Step 1 Scrape Fields and Create Fields list object.
-    // Step 2 Add Listener for Top Frame to Receive Fields.
+  try {
     if (isTopFrame()) {
-      //create object to collect data
-      let collectedFields = {}; 
-      //collect top frame data
-      let topFrameData = {};
-      const topIframe = getTopFrame();
-      if (topIframe) {
-        topIframe.addEventListener("load", () => {
-          try {
-            const topFrame = topIframe.document;
-            topFrameData = collectFieldsFromFrame(topFrame);
-            collectedFields = { ...collectedFields, ...topFrameData };
-          }
-          catch(error){
-            console.log("error")
-          }
-        });
-      }
-      
-      window.addEventListener('message', (event) => {
-        // - Merge fields from frames.
-        if (event.data && event.data.type === "fields") {
-          collectedFields = {...collectedFields, ...event.data.fields};
-        }
-        // - Process Fields and send event once all fields are collected.
-        const sortedObj = Object.fromEntries(Object.entries(collectedFields).sort())
-        const sortedCollectedData = Object.entries(sortedObj).map(([key, value]) => ({ [key]: value })) 
-        //create event "frames:loaded" and send collected Fields
-        const framesLoadedEvent = new CustomEvent("frames:loaded", {
-          detail: {
-            fields: sortedCollectedData
-          }
-        })
-        document.dispatchEvent(framesLoadedEvent);
-      });
-    } else if (!isTopFrame()) {
-      // Child frames sends Fields up to Top Frame.
-      
-      //collect both child frames data together as they are nested.
-      let childFrameData = {};
-      childFrameData = collectFieldsFromFrame(document);
-
-      const nestedIframe = document.querySelector("iframe");
-      if (nestedIframe) {
-        //check if nested iframe is loaded
-        nestedIframe.addEventListener("load", () => {
-          try{
-            const nestedDocument = nestedIframe.contentWindow.document;
-            let nestedFormData = {};
-            // collect the form fields from the nested iframe
-            nestedFormData = collectFieldsFromFrame(nestedDocument)
-            const combinedData = { ...childFrameData, ...nestedFormData };
-            //send combined fields to top frame
-            window.parent.postMessage(
-            { type: "fields", fields: combinedData },
-            "*"
-            );
-          } catch (error) {
-            console.error("Error accessing nested iframe:", error);
-          }
-        });
-        
-      }
+      handleTopFrame();
+    } else {
+      handleChildFrame();
     }
-	} catch (e) {
-		console.error(e)
-	}
+  } catch (error) {
+    console.error("Error executing script:", error);
+  }
 }
 
-function collectFieldsFromFrame(frameDoc){
-  let frameData = {};
-  frameDoc
-  .querySelectorAll("input[name], select[name]")
-  .forEach((element) => {
-    const label = frameDoc.querySelector(
-      `label[for="${element.id}"]`
-    );
-    frameData[element.name] = label.innerText;
+function handleTopFrame() {
+  //create object to collect fields
+  let collectedFields = {};
+
+  //collect top frame fields
+  const topIframe = getTopFrame();
+  if (topIframe) {
+    topIframe.addEventListener("load", () => {
+      try {
+        const topFrameData = collectFieldsFromFrame(topIframe.document);
+        collectedFields = { ...collectedFields, ...topFrameData };
+      } catch (error) {
+        console.error("Error collecting fields from top frame:", error);
+      }
+    });
+  }
+
+  window.addEventListener("message", (event) => {
+    // Merge fields received from child frames.
+    if (event.data && event.data.type === "fields") {
+      collectedFields = { ...collectedFields, ...event.data.fields };
+    }
+    // Process Fields and send event once all fields are collected.
+    const sortedCollectedData = getSortedFields(collectedFields);
+    dispatchFramesLoadedEvent(sortedCollectedData);
   });
-  return frameData
 }
 
-execute();
+function handleChildFrame() {
+  // Collect child frame's fields
+  const childFrameData = collectFieldsFromFrame(document);
+  const nestedIframe = document.querySelector("iframe");
+  if (nestedIframe) {
+    nestedIframe.addEventListener("load", () => {
+      try {
+        //Collect nested frame's fields
+        const nestedFormData = collectFieldsFromFrame(nestedIframe.contentWindow.document);
+        //Merge both child frames' fields
+        const combinedData = { ...childFrameData, ...nestedFormData };
+        //send combined fields to top frame
+        sendFieldsToParent(combinedData);
+      } catch (error) {
+        console.error("Error accessing nested iframe:", error);
+      }
+    });
+  } else {
+    //If there is no nested iframe, just send the current frame's data
+    sendFieldsToParent(childFrameData);
+  }
+}
+
+function collectFieldsFromFrame(frameDoc) {
+  const frameData = {};
+  frameDoc.querySelectorAll("input[name], select[name]").forEach((element) => {
+    const label = frameDoc.querySelector(`label[for="${element.id}"]`);
+    frameData[element.name] = label ? label.innerText : "";
+  });
+  return frameData;
+}
+
+function getSortedFields(fields) {
+  const sortedEntries = Object.entries(fields).sort(([a], [b]) => a.localeCompare(b));
+  return sortedEntries.map(([key, value]) => ({ [key]: value }));
+}
+
+function dispatchFramesLoadedEvent(fields) {
+  //create event "frames:loaded" and send all collected Fields to the event
+  const framesLoadedEvent = new CustomEvent("frames:loaded", {
+    detail: { fields },
+  });
+  document.dispatchEvent(framesLoadedEvent);
+}
+
+function sendFieldsToParent(fields) {
+  window.parent.postMessage({ type: "fields", fields }, "*");
+}
 
 // Utility functions to check and get the top frame
 // as Karma test framework changes top & context frames.
@@ -100,5 +101,7 @@ function getTopFrame() {
 }
 
 function isTopFrame() {
-  return window.location.pathname == '/context.html';
+  return window.location.pathname == "/context.html";
 }
+
+execute();
