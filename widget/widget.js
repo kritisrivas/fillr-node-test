@@ -13,11 +13,22 @@ function execute() {
       let collectedFields = {}; 
       //collect top frame data
       let topFrameData = {};
-      document.querySelectorAll("input[name]").forEach((element)=>{
-        const label = document.querySelector(`label[for="${element.id}"]`);
-        topFrameData[element.name] = label.innerText;
-      })
-      collectedFields = {...collectedFields, ...topFrameData}
+      const topIframe = getTopFrame();
+      if (topIframe) {
+        topIframe.addEventListener("load", () => {
+          try {
+            const topFrame = topIframe.document
+            topFrame.querySelectorAll("input[name]").forEach((element) => {
+              const label = topFrame.querySelector(`label[for="${element.id}"]`);
+              topFrameData[element.name] = label.innerText.trim();
+            });
+            collectedFields = { ...collectedFields, ...topFrameData };
+          }
+          catch(error){
+            console.log("error")
+          }
+        });
+      }
       
       window.addEventListener('message', (event) => {
         // - Merge fields from frames.
