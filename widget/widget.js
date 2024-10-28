@@ -37,17 +37,40 @@ function execute() {
       });
     } else if (!isTopFrame()) {
       // Child frames sends Fields up to Top Frame.
-      //collect both child frames data depending on loaded iframe's path
+      
+      //collect both child frames data together as they are nested.
       let childFrameData = {};
       document.querySelectorAll("input[name], select[name]").forEach((element)=>{
         const label = document.querySelector(`label[for="${element.id}"]`);
         childFrameData[element.name] = label.innerText;
       })
-      if(window.location.pathname.includes("address.html")){
-        window.parent.postMessage({ type: 'fields', fields: childFrameData }, '*');
-      }
-      if(window.location.pathname.includes("payment.html")){
-        window.parent.parent.postMessage({ type: 'fields', fields: childFrameData }, '*');
+      const nestedIframe = document.querySelector("iframe");
+      if (nestedIframe) {
+        //check if nested iframe is loaded
+        nestedIframe.addEventListener("load", () => {
+          try{
+            const nestedDocument = nestedIframe.contentWindow.document;
+            const nestedFormData = {};
+            // collect the form fields from the nested iframe
+            nestedDocument
+              .querySelectorAll("input[name], select[name]")
+              .forEach((element) => {
+                const label = nestedDocument.querySelector(
+                  `label[for="${element.id}"]`
+                );
+                nestedFormData[element.name] = label.innerText;
+              });
+            const combinedData = { ...childFrameData, ...nestedFormData };
+            //send combined fields to top frame
+            window.parent.postMessage(
+            { type: "fields", fields: combinedData },
+            "*"
+            );
+          } catch (error) {
+            console.error("Error accessing nested iframe:", error);
+          }
+        });
+        
       }
     }
 	} catch (e) {
