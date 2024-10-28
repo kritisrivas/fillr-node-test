@@ -17,11 +17,8 @@ function execute() {
       if (topIframe) {
         topIframe.addEventListener("load", () => {
           try {
-            const topFrame = topIframe.document
-            topFrame.querySelectorAll("input[name]").forEach((element) => {
-              const label = topFrame.querySelector(`label[for="${element.id}"]`);
-              topFrameData[element.name] = label.innerText.trim();
-            });
+            const topFrame = topIframe.document;
+            topFrameData = collectFieldsFromFrame(topFrame);
             collectedFields = { ...collectedFields, ...topFrameData };
           }
           catch(error){
@@ -33,15 +30,15 @@ function execute() {
       window.addEventListener('message', (event) => {
         // - Merge fields from frames.
         if (event.data && event.data.type === "fields") {
-          console.log(event.data.fields);
           collectedFields = {...collectedFields, ...event.data.fields};
         }
-        // console.log(collectedFields);
         // - Process Fields and send event once all fields are collected.
+        const sortedObj = Object.fromEntries(Object.entries(collectedFields).sort())
+        const sortedCollectedData = Object.entries(sortedObj).map(([key, value]) => ({ [key]: value })) 
         //create event "frames:loaded" and send collected Fields
         const framesLoadedEvent = new CustomEvent("frames:loaded", {
           detail: {
-            fields: collectedFields
+            fields: sortedCollectedData
           }
         })
         document.dispatchEvent(framesLoadedEvent);
@@ -51,26 +48,17 @@ function execute() {
       
       //collect both child frames data together as they are nested.
       let childFrameData = {};
-      document.querySelectorAll("input[name], select[name]").forEach((element)=>{
-        const label = document.querySelector(`label[for="${element.id}"]`);
-        childFrameData[element.name] = label.innerText;
-      })
+      childFrameData = collectFieldsFromFrame(document);
+
       const nestedIframe = document.querySelector("iframe");
       if (nestedIframe) {
         //check if nested iframe is loaded
         nestedIframe.addEventListener("load", () => {
           try{
             const nestedDocument = nestedIframe.contentWindow.document;
-            const nestedFormData = {};
+            let nestedFormData = {};
             // collect the form fields from the nested iframe
-            nestedDocument
-              .querySelectorAll("input[name], select[name]")
-              .forEach((element) => {
-                const label = nestedDocument.querySelector(
-                  `label[for="${element.id}"]`
-                );
-                nestedFormData[element.name] = label.innerText;
-              });
+            nestedFormData = collectFieldsFromFrame(nestedDocument)
             const combinedData = { ...childFrameData, ...nestedFormData };
             //send combined fields to top frame
             window.parent.postMessage(
@@ -87,6 +75,19 @@ function execute() {
 	} catch (e) {
 		console.error(e)
 	}
+}
+
+function collectFieldsFromFrame(frameDoc){
+  let frameData = {};
+  frameDoc
+  .querySelectorAll("input[name], select[name]")
+  .forEach((element) => {
+    const label = frameDoc.querySelector(
+      `label[for="${element.id}"]`
+    );
+    frameData[element.name] = label.innerText;
+  });
+  return frameData
 }
 
 execute();
