@@ -10,27 +10,40 @@ function execute() {
     // Step 2 Add Listener for Top Frame to Receive Fields.
     if (isTopFrame()) {
       //create object to collect data
-      let collectedFields = []; 
+      let collectedFields = {}; 
       //collect top frame data
       let topFrameData = {};
       document.querySelectorAll("input[name]").forEach((element)=>{
         const label = document.querySelector(`label[for="${element.id}"]`);
         topFrameData[element.name] = label.innerText;
       })
-      collectedFields = [...collectedFields, ...new Array(topFrameData)]
+      collectedFields = {...collectedFields, ...topFrameData}
+      
       window.addEventListener('message', (event) => {
         // - Merge fields from frames.
-        // - Process Fields and send event once all fields are collected.
-      });
-      //create event "frames:loaded" and send collected Fields
-      const event = new CustomEvent("frames:loaded", {
-        detail: {
-          fields: collectedFields
+        if (event.data && event.data.type === "fields") {
+          console.log(event.data.fields);
+          collectedFields = {...collectedFields, ...event.data.fields};
         }
-      })
-      document.dispatchEvent(event)
+        // console.log(collectedFields);
+        // - Process Fields and send event once all fields are collected.
+        //create event "frames:loaded" and send collected Fields
+        const framesLoadedEvent = new CustomEvent("frames:loaded", {
+          detail: {
+            fields: collectedFields
+          }
+        })
+        document.dispatchEvent(framesLoadedEvent);
+      });
     } else if (!isTopFrame()) {
       // Child frames sends Fields up to Top Frame.
+      //collect child frame data
+      let childFrameData = {};
+      document.querySelectorAll("input[name], select[name]").forEach((element)=>{
+        const label = document.querySelector(`label[for="${element.id}"]`);
+        childFrameData[element.name] = label.innerText;
+      })
+      window.parent.postMessage({ type: "fields", fields: childFrameData }, "*");
     }
 	} catch (e) {
 		console.error(e)
