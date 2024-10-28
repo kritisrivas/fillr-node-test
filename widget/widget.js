@@ -21,17 +21,14 @@ function handleTopFrame() {
   let collectedFields = {};
 
   //collect top frame fields
-  const topIframe = getTopFrame();
-  if (topIframe) {
-    topIframe.addEventListener("load", () => {
-      try {
-        const topFrameData = collectFieldsFromFrame(topIframe.document);
-        collectedFields = { ...collectedFields, ...topFrameData };
-      } catch (error) {
-        console.error("Error collecting fields from top frame:", error);
-      }
-    });
-  }
+  window.addEventListener("load", () => {
+    try {
+      const topFrameData = collectFieldsFromFrame(window.document);
+      collectedFields = { ...collectedFields, ...topFrameData };
+    } catch (error) {
+      console.error("Error collecting fields from top frame:", error);
+    }
+  });
 
   window.addEventListener("message", (event) => {
     // Merge fields received from child frames.
