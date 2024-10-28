@@ -13,6 +13,21 @@ function execute() {
         // - Merge fields from frames.
         // - Process Fields and send event once all fields are collected.
       });
+      //create event "frames:loaded" and send mock fieldsData
+      const fieldsData = [
+        { "address_line_1" : "Address Line 1" },
+        { "cc_number" : "Number" },
+        { "cc_type" : "Type" },
+        { "country" : "Country" },
+        { "first_name" : "First Name" },
+        { "last_name" : "Last Name" }
+      ]
+      const event = new CustomEvent("frames:loaded", {
+        detail: {
+          fields: fieldsData
+        }
+      })
+      document.dispatchEvent(event)
     } else if (!isTopFrame()) {
       // Child frames sends Fields up to Top Frame.
     }
